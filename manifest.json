@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "FormGuard",
+  "version": "0.1.0",
+  "description": "Never lose what you were typing again. Local-only draft recovery for web forms.",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "FormGuard",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
