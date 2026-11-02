@@ -43,7 +43,7 @@ Page-controlled text is only ever handled as text (`value` or `textContent`), ne
 ## Permissions
 
 - `storage`: required for settings and drafts in `chrome.storage.local`.
-- `host_permissions: <all_urls>` and a declarative content script match: required to protect forms on sites the user visits. Chrome-restricted pages and extension stores remain inaccessible by platform design.
+- A declarative content-script match for `<all_urls>`: required to protect forms on sites the user visits. It is declared only in `content_scripts`; no redundant `host_permissions` entry is requested. Chrome-restricted pages and extension stores remain inaccessible by platform design.
 
 No `tabs`, browsing history, cookies, web request, clipboard, identity, scripting, alarms, or network permissions are requested.
 

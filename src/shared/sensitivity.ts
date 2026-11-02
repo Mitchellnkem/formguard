@@ -59,7 +59,7 @@ export function sensitivitySignals(element: Element): string {
   const attributes = ["name", "id", "placeholder", "aria-label", "title", "data-testid"];
   const values = attributes.map((name) => element.getAttribute(name) ?? "");
   values.push(labelText(element));
-  return normalizeText(values.join(" "), 800);
+  return normalizeText(values.join(" ").replace(/[_./:–—-]+/g, " "), 800);
 }
 
 export function isSensitiveField(element: Element): boolean {

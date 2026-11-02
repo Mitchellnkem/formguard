@@ -48,5 +48,6 @@ describe("sensitive-field detection", () => {
     expect(isEligibleField(field('<input type="number" name="quantity">'))).toBe(false);
     expect(isEligibleField(field('<textarea data-formguard="off"></textarea>'))).toBe(false);
     expect(isEligibleField(field('<input type="text" readonly>'))).toBe(false);
+    expect(isEligibleField(field('<input type="text" style="display:none">'))).toBe(false);
   });
 });

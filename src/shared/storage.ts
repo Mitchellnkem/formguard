@@ -1,6 +1,14 @@
 import { DEFAULT_SETTINGS, MAX_DRAFTS, STORAGE_KEYS } from "./constants";
 import type { Draft, Settings } from "./types";
 
+let mutationQueue: Promise<void> = Promise.resolve();
+
+function enqueueMutation(operation: () => Promise<void>): Promise<void> {
+  const result = mutationQueue.then(operation, operation);
+  mutationQueue = result.catch(() => undefined);
+  return result;
+}
+
 function normalizeSettings(input: Partial<Settings> | undefined): Settings {
   const retention = Number(input?.retentionDays);
   return {
@@ -62,17 +70,23 @@ export async function getDraft(id: string): Promise<Draft | undefined> {
 }
 
 export async function upsertDraft(draft: Draft): Promise<void> {
-  const drafts = await getDrafts();
-  const existingIndex = drafts.findIndex((item) => item.id === draft.id);
-  if (existingIndex >= 0) drafts[existingIndex] = draft;
-  else drafts.push(draft);
-  await writeDrafts(drafts);
+  await enqueueMutation(async () => {
+    const drafts = await getDrafts();
+    const existingIndex = drafts.findIndex((item) => item.id === draft.id);
+    if (existingIndex >= 0) drafts[existingIndex] = draft;
+    else drafts.push(draft);
+    await writeDrafts(drafts);
+  });
 }
 
 export async function deleteDraft(id: string): Promise<void> {
-  await writeDrafts((await getDrafts()).filter((draft) => draft.id !== id));
+  await enqueueMutation(async () => {
+    await writeDrafts((await getDrafts()).filter((draft) => draft.id !== id));
+  });
 }
 
 export async function clearDrafts(): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEYS.drafts]: [] });
+  await enqueueMutation(async () => {
+    await chrome.storage.local.set({ [STORAGE_KEYS.drafts]: [] });
+  });
 }

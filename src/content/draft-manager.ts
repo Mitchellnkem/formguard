@@ -10,12 +10,13 @@ interface TrackedField {
   field: SupportedField;
   onInput: EventListener;
   save: (() => void) & { cancel: () => void };
-  recovery?: RecoveryControl;
+  recovery: RecoveryControl | undefined;
 }
 
 export class DraftManager {
   private tracked = new Map<SupportedField, TrackedField>();
-  private observer?: MutationObserver;
+  private observer: MutationObserver | undefined;
+  private routeTimer: ReturnType<typeof setInterval> | undefined;
   private active = false;
   private route = `${location.origin}${location.pathname}`;
 
@@ -24,6 +25,7 @@ export class DraftManager {
     if (!this.active) return;
     await this.scan(document);
     this.observer = new MutationObserver((records) => {
+      this.handlePossibleRouteChange();
       for (const record of records) {
         for (const node of record.addedNodes) {
           if (node instanceof Element) void this.scan(node);
@@ -34,28 +36,19 @@ export class DraftManager {
     this.observer.observe(document.documentElement, { childList: true, subtree: true });
     window.addEventListener("popstate", this.handlePossibleRouteChange);
     window.addEventListener("hashchange", this.handlePossibleRouteChange);
-    this.patchHistory();
+    this.routeTimer = setInterval(this.handlePossibleRouteChange, 1_000);
   }
 
   stop(): void {
     this.active = false;
     this.observer?.disconnect();
     this.observer = undefined;
+    if (this.routeTimer !== undefined) clearInterval(this.routeTimer);
+    this.routeTimer = undefined;
     window.removeEventListener("popstate", this.handlePossibleRouteChange);
     window.removeEventListener("hashchange", this.handlePossibleRouteChange);
     for (const tracked of this.tracked.values()) this.untrack(tracked);
     this.tracked.clear();
-  }
-
-  private patchHistory(): void {
-    for (const method of ["pushState", "replaceState"] as const) {
-      const original = history[method].bind(history);
-      history[method] = ((...args: Parameters<History[typeof method]>) => {
-        const result = original(...args);
-        queueMicrotask(this.handlePossibleRouteChange);
-        return result;
-      }) as History[typeof method];
-    }
   }
 
   private handlePossibleRouteChange = (): void => {
@@ -82,7 +75,7 @@ export class DraftManager {
     if (!this.active || !field.isConnected || !isEligibleField(field)) return;
     const save = debounce(() => void this.saveField(field), SAVE_DEBOUNCE_MS);
     const onInput: EventListener = () => save();
-    const tracked: TrackedField = { field, onInput, save };
+    const tracked: TrackedField = { field, onInput, save, recovery: undefined };
     this.tracked.set(field, tracked);
     field.addEventListener("input", onInput);
 

@@ -23,6 +23,10 @@ export function isEligibleField(element: Element): element is SupportedField {
     if (element.hidden) return false;
   }
   if (element.closest("[hidden], [aria-hidden='true']")) return false;
+  if (element instanceof HTMLElement && element.isConnected) {
+    const style = getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") return false;
+  }
   return true;
 }
 

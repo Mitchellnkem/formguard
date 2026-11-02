@@ -3,7 +3,7 @@ import { MAX_DRAFTS, STORAGE_KEYS } from "../src/shared/constants";
 import { clearDrafts, deleteDraft, getDrafts, getSettings, setOriginEnabled, upsertDraft } from "../src/shared/storage";
 import type { Draft } from "../src/shared/types";
 
-function draft(id: string, updatedAt: number, expiresAt = updatedAt + 10_000): Draft {
+function draft(id: string, updatedAt: number, expiresAt = Number.MAX_SAFE_INTEGER): Draft {
   return { id, value: `value-${id}`, origin: "https://example.test", pathname: "/write", fieldLabel: "Body", createdAt: updatedAt, updatedAt, expiresAt };
 }
 
@@ -16,6 +16,11 @@ describe("draft storage", () => {
     expect((await getDrafts(0)).map((item) => item.id)).toEqual(["a"]);
     await clearDrafts();
     expect(await getDrafts(0)).toEqual([]);
+  });
+
+  it("serializes simultaneous writes from multiple fields", async () => {
+    await Promise.all([upsertDraft(draft("a", 100)), upsertDraft(draft("b", 200)), upsertDraft(draft("c", 300))]);
+    expect((await getDrafts(0)).map((item) => item.id)).toEqual(["c", "b", "a"]);
   });
 
   it("removes expired and malformed records", async () => {
