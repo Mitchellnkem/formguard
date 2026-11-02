@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { cleanupExpiredDrafts, getAllDrafts, getSettings, saveDraft, saveSettings } from "../src/storage";
 import type { DraftRecord } from "../src/utils";
+import { MAX_DRAFTS, STORAGE_KEYS } from "../src/shared/constants";
+import { clearDrafts, deleteDraft, getDrafts, getSettings as getSharedSettings, setOriginEnabled, upsertDraft } from "../src/shared/storage";
+import type { Draft } from "../src/shared/types";
 
-function draft(id: string, expiresAt: number): DraftRecord {
+function legacyDraft(id: string, expiresAt: number): DraftRecord {
   return {
     id, origin: "https://example.com", pathname: "/", hostname: "example.com",
     formFingerprint: "form", fieldFingerprint: id, fieldLabel: "Message", content: "draft",
@@ -10,10 +13,14 @@ function draft(id: string, expiresAt: number): DraftRecord {
   };
 }
 
-describe("storage", () => {
+function draft(id: string, updatedAt: number, expiresAt = Number.MAX_SAFE_INTEGER): Draft {
+  return { id, value: `value-${id}`, origin: "https://example.test", pathname: "/write", fieldLabel: "Body", createdAt: updatedAt, updatedAt, expiresAt };
+}
+
+describe("legacy storage", () => {
   it("cleans up only expired drafts", async () => {
-    await saveDraft(draft("old", 99));
-    await saveDraft(draft("new", 101));
+    await saveDraft(legacyDraft("old", 99));
+    await saveDraft(legacyDraft("new", 101));
     expect(await cleanupExpiredDrafts(100)).toBe(1);
     expect((await getAllDrafts()).map((item) => item.id)).toEqual(["new"]);
   });
@@ -21,5 +28,42 @@ describe("storage", () => {
   it("normalizes and clamps settings", async () => {
     await saveSettings({ enabled: true, excludedHosts: ["EXAMPLE.COM", "example.com"], retentionDays: 500 });
     expect(await getSettings()).toEqual({ enabled: true, excludedHosts: ["example.com"], retentionDays: 90 });
+  });
+});
+
+describe("draft storage", () => {
+  it("upserts and deletes individual drafts", async () => {
+    await upsertDraft(draft("a", 100));
+    await upsertDraft(draft("b", 200));
+    expect((await getDrafts(0)).map((item) => item.id)).toEqual(["b", "a"]);
+    await deleteDraft("b");
+    expect((await getDrafts(0)).map((item) => item.id)).toEqual(["a"]);
+    await clearDrafts();
+    expect(await getDrafts(0)).toEqual([]);
+  });
+
+  it("serializes simultaneous writes from multiple fields", async () => {
+    await Promise.all([upsertDraft(draft("a", 100)), upsertDraft(draft("b", 200)), upsertDraft(draft("c", 300))]);
+    expect((await getDrafts(0)).map((item) => item.id)).toEqual(["c", "b", "a"]);
+  });
+
+  it("removes expired and malformed records", async () => {
+    await chrome.storage.local.set({ [STORAGE_KEYS.drafts]: [draft("old", 10, 20), draft("new", 90, 200), { id: "bad" }] });
+    expect((await getDrafts(100)).map((item) => item.id)).toEqual(["new"]);
+  });
+
+  it("caps storage at the newest records", async () => {
+    for (let index = 0; index < MAX_DRAFTS + 3; index += 1) await upsertDraft(draft(String(index), index));
+    const drafts = await getDrafts(0);
+    expect(drafts).toHaveLength(MAX_DRAFTS);
+    expect(drafts[0]?.id).toBe(String(MAX_DRAFTS + 2));
+  });
+
+  it("tracks disabled origins without duplicates", async () => {
+    await setOriginEnabled("https://example.test", false);
+    await setOriginEnabled("https://example.test", false);
+    expect((await getSharedSettings()).disabledOrigins).toEqual(["https://example.test"]);
+    await setOriginEnabled("https://example.test", true);
+    expect((await getSharedSettings()).disabledOrigins).toEqual([]);
   });
 });

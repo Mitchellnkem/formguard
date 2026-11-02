@@ -2,100 +2,78 @@
 
 **Never lose what you were typing again.**
 
-FormGuard is a small, privacy-focused Chrome/Chromium Manifest V3 extension. It saves eligible unfinished form text to `chrome.storage.local` and offers to restore it when the same page, form, and field return. It has no backend, account, telemetry, remote code, or network requests.
+FormGuard V0.1 is a small, privacy-focused Chrome/Chromium extension that saves eligible unfinished form text locally and offers an explicit restore prompt when the matching page and field return.
 
-## V0.1 architecture
+## Privacy and security at a glance
 
-- `src/content.ts` coordinates field discovery, debounced input handling, recovery UI, form submission cleanup, dynamic DOM observation, and practical SPA route detection.
-- `src/field-detector.ts` discovers supported inputs, textareas, and reliable contenteditable elements and safely reads/writes their text.
-- `src/security.ts` rejects sensitive or ambiguous fields using type, autocomplete, name, ID, label, placeholder, title, test ID, and ARIA signals.
-- `src/draft-manager.ts` creates page/form/field fingerprints and constructs draft records.
-- `src/storage.ts` is the only persistence boundary. Drafts use individual prefixed keys in `chrome.storage.local`.
-- `popup/` shows protection state, local draft count, site exclusion controls, and a link to management.
-- `options/` manages retention, site exclusions, individual deletion, and clearing all drafts.
-- `src/utils.ts` contains shared strict types and small deterministic helpers.
+- Local-only `chrome.storage.local`; no server, account, sync, telemetry, or network request.
+- Conservative sensitive-field rejection for passwords, OTPs, PINs, payment fields, authentication secrets, and suspicious metadata.
+- Query strings and URL fragments are not stored.
+- Existing meaningful field content is never silently overwritten.
+- Drafts expire automatically (7 days by default) and storage is capped at 100 drafts.
 
-### Draft identification
+See [the architecture and threat model](docs/ARCHITECTURE.md), [privacy policy](docs/PRIVACY.md), and [security checklist](docs/SECURITY_CHECKLIST.md).
 
-A draft ID is a deterministic hash of:
+## Project structure
 
-1. Lowercase page origin and normalized pathname. Query parameters and fragments are never stored or included.
-2. A form fingerprint based on form ID/name, query-free action path, method, and document index.
-3. A field fingerprint based on tag, ID/name, autocomplete/ARIA label, and index within its form.
-
-This is deliberately practical rather than magical. It separates common fields without retaining selectors or sensitive URLs. A significant website redesign can make an old draft no longer match; users can still delete it in Options.
-
-### Permissions
-
-- `storage`: required for local settings and drafts.
-- `http://*/*` and `https://*/*` content-script matches: required to protect forms on ordinary websites. There is no host API access or outgoing network code.
-
-No `tabs`, cookies, browsing history, identity, clipboard, or background permissions are requested. Chrome-restricted pages are unavailable by platform design.
+```text
+src/content/     Page field discovery, autosave, SPA handling, recovery UI
+src/shared/      Field rules, sensitivity, matching, storage, utilities
+src/popup/       Toolbar popup behavior
+src/options/     Draft and settings management
+static/          Extension HTML and CSS
+tests/           Automated unit and security tests
+docs/            Architecture, privacy, test, release, and backlog documents
+scripts/         Build and packaging scripts
+```
 
 ## Build
 
-Requirements: a supported Node.js release (22.12+, 24.x, or 26+) and npm.
+Requirements: Node.js 20+ and npm.
 
 ```sh
 npm install
-npm run typecheck
+npm run check
 npm test
 npm run build
 ```
 
-The loadable extension is generated in `dist/`. The build script bundles TypeScript, copies static assets, and generates local PNG icons without downloading runtime resources.
-
-For TypeScript watch mode:
-
-```sh
-npm run dev
-```
-
-Static HTML/CSS changes require restarting the build command.
+The unpacked extension is generated in `dist/`. Dependencies are development-only and are not shipped in the extension.
 
 ## Install for development
 
-1. Run `npm install` and `npm run build`.
-2. Open `chrome://extensions` (or the equivalent Chromium extensions page).
+1. Build the project.
+2. Open `chrome://extensions` in Chrome or Chromium.
 3. Enable **Developer mode**.
-4. Choose **Load unpacked** and select the `formguard/dist` directory.
-5. Open a normal HTTP(S) page with a non-sensitive textarea, type text, wait at least one second, and refresh.
-6. After rebuilding, click **Reload** on the extension card and refresh any test page.
+4. Choose **Load unpacked** and select the generated `dist` directory.
+5. Open `tests/manual-fixture.html` from a local web server (or use a normal test site). To test a `file://` fixture directly, enable **Allow access to file URLs** for FormGuard.
+6. After rebuilding, click FormGuard's **Reload** button on `chrome://extensions` and refresh the test page.
 
-## Behavior
+## How recovery works
 
-- Saving is debounced by 700 ms.
-- Whitespace-only content removes that field's draft.
-- Successful form submission removes drafts for fields in that form.
-- A recovery prompt never restores automatically. If a field already contains different meaningful text, the first Restore click changes to a second explicit “Replace current text?” confirmation.
-- Drafts expire after 14 days by default (configurable from 1–90 days). Cleanup runs when FormGuard initializes or its management UI opens.
-- Draft content is capped at 200,000 characters per field to reduce accidental storage exhaustion.
+Typing two or more non-whitespace characters into an eligible field schedules a local save after 700 ms. On a later visit, a matching empty field displays Restore and Delete. Restore writes plain text, dispatches normal input/change events, and removes the recovered draft. New edits create a fresh draft.
 
-## Documentation
+The matching key combines origin, query-free path, a form fingerprint, and a field fingerprint. This reduces incorrect restores but means major markup changes may orphan an old draft, which can still be deleted in Manage Drafts.
 
-- [Threat model and security checklist](SECURITY.md)
-- [Testing checklist](TESTING.md)
-- [Privacy policy draft](PRIVACY.md)
-- [Release and packaging checklist](RELEASE.md)
+## Package for distribution
+
+```sh
+npm run package
+```
+
+This rebuilds and creates `release/formguard-v0.1.0.zip`, with `manifest.json` at the ZIP root. Before upload, complete [the release checklist](docs/RELEASE_CHECKLIST.md), inspect the ZIP contents, test the exact package in a clean browser profile, and submit it through the Chrome Web Store developer dashboard with the privacy disclosure.
 
 ## Known limitations
 
-- A crash inside the 700 ms debounce window can lose the most recent change.
-- `chrome.storage.local` is local profile storage, not FormGuard-provided encryption. Anyone or malware with access to the unlocked browser profile may access it.
-- Browser-internal pages, extension stores, PDFs, sandboxed/cross-origin frames, and other restricted surfaces cannot be protected.
-- Rich editors with virtual document models, canvas rendering, or unusual event handling may not work reliably. Contenteditable support is intentionally conservative.
-- Duplicate tabs for the same normalized page/form/field share one latest draft.
-- Fingerprints are best-effort. Major DOM changes can prevent automatic matching; identical repeated unnamed fields may be ambiguous.
-- FormGuard cannot know that an AJAX-based form submission succeeded unless the page clears the field; ordinary form `submit` events are handled.
-- Storage quota or browser policy failures can prevent saving. FormGuard logs a generic warning without draft contents.
+- Chrome-protected pages, the Web Store, some PDF viewers, closed shadow roots, cross-origin frames, and canvas-based editors are unsupported.
+- Rich-text editors are supported only when they behave like a standard contenteditable element.
+- FormGuard does not encrypt browser-profile storage and cannot protect against someone with access to the unlocked profile.
+- A site's structural changes can change matching keys.
+- Concurrent edits to the same field in duplicate tabs use last-write-wins behavior.
+- The extension cannot guarantee recovery from every crash or edits lost before the debounce completes.
 
-## Suggested V0.2 backlog
+See [the V0.2 backlog](docs/V0.2_BACKLOG.md) for deliberately deferred improvements.
 
-1. User-visible storage quota health and per-site storage totals.
-2. A page-level recovery drawer for unmatched drafts, with cautious manual targeting.
-3. Better support for well-known rich-text editors through audited adapters.
-4. Configurable per-site retention and an explicit “never save this field” control.
-5. Optional encrypted export/import using a user-held passphrase (never automatic sync).
-6. Integration tests in a real Chromium instance for restart, SPA, and duplicate-tab flows.
+## License
 
-These are candidates, not commitments; each should receive a privacy and permission review before implementation.
+No license has been selected yet. Add one before public source distribution.

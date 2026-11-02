@@ -1,21 +1,24 @@
+import { webcrypto } from "node:crypto";
 import { beforeEach } from "vitest";
 
-const data: Record<string, unknown> = {};
+Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
+
+const store: Record<string, unknown> = {};
 
 const local = {
-  async get(keys: string | string[] | null): Promise<Record<string, unknown>> {
-    if (keys === null) return { ...data };
-    const selected = Array.isArray(keys) ? keys : [keys];
-    return Object.fromEntries(selected.filter((key) => key in data).map((key) => [key, data[key]]));
+  async get(key: string | string[] | null) {
+    if (key === null) return { ...store };
+    const keys = Array.isArray(key) ? key : [key];
+    return Object.fromEntries(keys.filter((item) => item in store).map((item) => [item, store[item]]));
   },
-  async set(items: Record<string, unknown>): Promise<void> {
-    Object.assign(data, items);
+  async set(values: Record<string, unknown>) {
+    Object.assign(store, values);
   },
-  async remove(keys: string | string[]): Promise<void> {
-    for (const key of Array.isArray(keys) ? keys : [keys]) delete data[key];
+  async remove(keys: string | string[]) {
+    for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key];
   },
-  async clear(): Promise<void> {
-    for (const key of Object.keys(data)) delete data[key];
+  async clear() {
+    for (const key of Object.keys(store)) delete store[key];
   }
 };
 
@@ -27,4 +30,5 @@ Object.defineProperty(globalThis, "chrome", {
 beforeEach(async () => {
   document.body.replaceChildren();
   await local.clear();
+  history.replaceState(null, "", "/test");
 });
