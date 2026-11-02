@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>FormGuard manual fixture</title></head>
+  <body>
+    <h1>FormGuard manual fixture</h1>
+    <form id="profile" action="/save-profile">
+      <label>Display name <input name="displayName" autocomplete="name"></label>
+      <label>Biography <textarea name="bio"></textarea></label>
+      <div aria-label="Rich notes" contenteditable="true"></div>
+    </form>
+    <form id="security">
+      <label>Password <input type="password" name="password"></label>
+      <label>One-time code <input type="text" name="otp" autocomplete="one-time-code"></label>
+      <label>Card number <input type="text" name="card_number"></label>
+      <label>CVV <input type="text" name="cvv"></label>
+      <input type="hidden" name="csrf_token" value="must-not-save">
+    </form>
+    <button id="dynamic" type="button">Add dynamic field</button>
+    <script>
+      document.querySelector("#dynamic").addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.name = "dynamicNote";
+        input.placeholder = "Dynamic note";
+        document.body.append(input);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+:root { color-scheme: light; font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #18392a; background: #f5f8f6; }
+body { margin: 0; }
+main { width: min(820px, calc(100% - 36px)); margin: 42px auto 80px; }
+header { margin-bottom: 24px; }
+.kicker { margin: 0; color: #17633f; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+h1 { margin: 3px 0 4px; font-size: 30px; }
+h2 { margin: 0 0 5px; font-size: 19px; }
+p { margin: 0; color: #5a6d62; }
+section { margin-top: 16px; padding: 22px; border: 1px solid #d7e1db; border-radius: 12px; background: white; box-shadow: 0 3px 15px rgba(25,58,42,.04); }
+.section-heading { display: flex; justify-content: space-between; align-items: start; gap: 20px; }
+button, select { border: 1px solid #52705f; border-radius: 7px; background: white; color: #214b35; padding: 7px 11px; font: inherit; cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid #11854e; outline-offset: 2px; }
+button:disabled { opacity: .5; }
+.danger { color: #8b2727; border-color: #c99b9b; white-space: nowrap; }
+.draft-list, .disabled-list { margin: 16px 0 0; padding: 0; list-style: none; }
+.draft-row, .disabled-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid #e5ebe7; }
+.draft-copy { display: flex; flex-direction: column; min-width: 0; }
+.draft-copy span { overflow: hidden; color: #52675b; text-overflow: ellipsis; white-space: nowrap; }
+.draft-copy small { color: #77867e; }
+.empty { margin-top: 16px; padding: 20px; border-radius: 8px; background: #f4f7f5; text-align: center; }
+label { display: inline-block; margin: 13px 9px 0 0; }
+@media (max-width: 560px) { .section-heading { flex-direction: column; } .danger { width: 100%; } }
