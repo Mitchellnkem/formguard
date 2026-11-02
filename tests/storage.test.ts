@@ -1,11 +1,35 @@
 import { describe, expect, it } from "vitest";
+import { cleanupExpiredDrafts, getAllDrafts, getSettings, saveDraft, saveSettings } from "../src/storage";
+import type { DraftRecord } from "../src/utils";
 import { MAX_DRAFTS, STORAGE_KEYS } from "../src/shared/constants";
-import { clearDrafts, deleteDraft, getDrafts, getSettings, setOriginEnabled, upsertDraft } from "../src/shared/storage";
+import { clearDrafts, deleteDraft, getDrafts, getSettings as getSharedSettings, setOriginEnabled, upsertDraft } from "../src/shared/storage";
 import type { Draft } from "../src/shared/types";
+
+function legacyDraft(id: string, expiresAt: number): DraftRecord {
+  return {
+    id, origin: "https://example.com", pathname: "/", hostname: "example.com",
+    formFingerprint: "form", fieldFingerprint: id, fieldLabel: "Message", content: "draft",
+    createdAt: 1, updatedAt: 1, expiresAt
+  };
+}
 
 function draft(id: string, updatedAt: number, expiresAt = Number.MAX_SAFE_INTEGER): Draft {
   return { id, value: `value-${id}`, origin: "https://example.test", pathname: "/write", fieldLabel: "Body", createdAt: updatedAt, updatedAt, expiresAt };
 }
+
+describe("legacy storage", () => {
+  it("cleans up only expired drafts", async () => {
+    await saveDraft(legacyDraft("old", 99));
+    await saveDraft(legacyDraft("new", 101));
+    expect(await cleanupExpiredDrafts(100)).toBe(1);
+    expect((await getAllDrafts()).map((item) => item.id)).toEqual(["new"]);
+  });
+
+  it("normalizes and clamps settings", async () => {
+    await saveSettings({ enabled: true, excludedHosts: ["EXAMPLE.COM", "example.com"], retentionDays: 500 });
+    expect(await getSettings()).toEqual({ enabled: true, excludedHosts: ["example.com"], retentionDays: 90 });
+  });
+});
 
 describe("draft storage", () => {
   it("upserts and deletes individual drafts", async () => {
@@ -38,8 +62,8 @@ describe("draft storage", () => {
   it("tracks disabled origins without duplicates", async () => {
     await setOriginEnabled("https://example.test", false);
     await setOriginEnabled("https://example.test", false);
-    expect((await getSettings()).disabledOrigins).toEqual(["https://example.test"]);
+    expect((await getSharedSettings()).disabledOrigins).toEqual(["https://example.test"]);
     await setOriginEnabled("https://example.test", true);
-    expect((await getSettings()).disabledOrigins).toEqual([]);
+    expect((await getSharedSettings()).disabledOrigins).toEqual([]);
   });
 });

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FormGuard</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header><img class="mark" src="../icons/48.png" alt=""><h1>FORMGUARD</h1></header>
+    <section><span>Protection</span><strong id="status">Checking…</strong></section>
+    <section><span>Drafts</span><strong id="draft-count">—</strong></section>
+    <section><span>Storage</span><strong>Local device only</strong></section>
+    <button id="manage" class="primary">Manage drafts</button>
+    <button id="toggle" disabled>Disable on this website</button>
+    <p id="message" role="status"></p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

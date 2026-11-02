@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FormGuard settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header><img class="mark" src="../icons/48.png" alt=""><div><h1>FormGuard</h1><p>Local draft protection</p></div></header>
+    <section>
+      <h2>Protection</h2>
+      <label class="row"><span><strong>Enable FormGuard</strong><small>Protect eligible fields except on excluded websites.</small></span><input id="enabled" type="checkbox"></label>
+      <label class="row"><span><strong>Keep drafts for</strong><small>Expired drafts are removed automatically.</small></span><span><input id="retention" type="number" min="1" max="90"> days</span></label>
+    </section>
+    <section>
+      <div class="heading"><div><h2>Saved drafts</h2><p id="summary">Loading…</p></div><button id="clear" class="danger">Clear all</button></div>
+      <div id="drafts" class="drafts"></div>
+    </section>
+    <section>
+      <h2>Excluded websites</h2>
+      <p>Use the popup on a website to enable or disable protection.</p>
+      <div id="excluded" class="excluded"></div>
+    </section>
+    <p id="message" role="status"></p>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
